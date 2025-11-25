@@ -182,7 +182,7 @@ remindly/
 ### 1. Clone הפרויקט
 
 ```bash
-git clone https://github.com/yourusername/remindly.git
+git clone https://github.com/grhsystems/remindly.git
 cd remindly
 ```
 
@@ -196,7 +196,7 @@ npm install
 cp .env.example .env
 
 # הגדר PostgreSQL
-createdb remindly_db
+createdb remindly
 
 # הפעל שרת
 npm run dev
