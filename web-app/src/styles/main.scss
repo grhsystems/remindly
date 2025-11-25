@@ -1,0 +1,577 @@
+// Main SCSS file for Remindly App
+
+// Import Vuetify styles
+@import 'vuetify/styles';
+
+// Custom variables
+:root {
+  --remindly-primary: #1976d2;
+  --remindly-secondary: #424242;
+  --remindly-accent: #82b1ff;
+  --remindly-error: #ff5252;
+  --remindly-info: #2196f3;
+  --remindly-success: #4caf50;
+  --remindly-warning: #ffc107;
+  
+  // Spacing
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
+  // Border radius
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  
+  // Shadows
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+  --shadow-xl: 0 14px 28px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.22);
+}
+
+// RTL Support
+[dir="rtl"] {
+  .v-application {
+    text-align: right;
+  }
+  
+  .v-list-item {
+    text-align: right;
+  }
+  
+  .v-card-title {
+    text-align: right;
+  }
+  
+  .v-card-text {
+    text-align: right;
+  }
+  
+  .v-text-field input {
+    text-align: right;
+  }
+  
+  .v-textarea textarea {
+    text-align: right;
+  }
+  
+  .v-chip {
+    margin-left: 4px;
+    margin-right: 0;
+  }
+  
+  .v-btn {
+    margin-left: 4px;
+    margin-right: 0;
+  }
+  
+  .v-icon {
+    margin-left: 4px;
+    margin-right: 0;
+  }
+}
+
+// Global styles
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f5f5;
+}
+
+// App specific styles
+.remindly-app {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
+  .v-application {
+    background: transparent;
+  }
+}
+
+// Custom components
+.remindly-card {
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+  
+  &.elevated {
+    box-shadow: var(--shadow-xl);
+  }
+}
+
+.remindly-list-card {
+  @extend .remindly-card;
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+  
+  .v-card-title {
+    font-weight: 600;
+    color: var(--remindly-primary);
+  }
+  
+  .v-card-subtitle {
+    color: var(--remindly-secondary);
+    opacity: 0.8;
+  }
+  
+  .list-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .task-count {
+    font-size: 0.875rem;
+    color: var(--remindly-secondary);
+    opacity: 0.7;
+  }
+}
+
+.remindly-task-item {
+  @extend .remindly-card;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-md);
+  
+  &.completed {
+    opacity: 0.6;
+    text-decoration: line-through;
+  }
+  
+  &.overdue {
+    border-left: 4px solid var(--remindly-error);
+  }
+  
+  &.high-priority {
+    border-left: 4px solid var(--remindly-warning);
+  }
+  
+  &.urgent {
+    border-left: 4px solid var(--remindly-error);
+    background-color: rgba(255, 82, 82, 0.05);
+  }
+  
+  .task-title {
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .task-description {
+    color: var(--remindly-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .task-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.75rem;
+    color: var(--remindly-secondary);
+  }
+  
+  .priority-chip {
+    font-size: 0.75rem;
+    height: 20px;
+    
+    &.low {
+      background-color: rgba(76, 175, 80, 0.1);
+      color: var(--remindly-success);
+    }
+    
+    &.medium {
+      background-color: rgba(33, 150, 243, 0.1);
+      color: var(--remindly-info);
+    }
+    
+    &.high {
+      background-color: rgba(255, 193, 7, 0.1);
+      color: var(--remindly-warning);
+    }
+    
+    &.urgent {
+      background-color: rgba(255, 82, 82, 0.1);
+      color: var(--remindly-error);
+    }
+  }
+}
+
+.remindly-shopping-item {
+  @extend .remindly-card;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-md);
+  
+  &.checked {
+    opacity: 0.6;
+    text-decoration: line-through;
+  }
+  
+  .item-name {
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .item-quantity {
+    color: var(--remindly-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .item-price {
+    font-weight: 600;
+    color: var(--remindly-success);
+    font-size: 1.1rem;
+  }
+  
+  .price-search {
+    margin-top: var(--spacing-sm);
+    
+    .v-btn {
+      font-size: 0.75rem;
+      height: 28px;
+    }
+  }
+}
+
+// Search styles
+.remindly-search {
+  .search-field {
+    max-width: 400px;
+    
+    .v-field__input {
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+  }
+  
+  .search-results {
+    margin-top: var(--spacing-md);
+    
+    .search-result-item {
+      @extend .remindly-card;
+      margin-bottom: var(--spacing-sm);
+      padding: var(--spacing-md);
+      cursor: pointer;
+      
+      &:hover {
+        background-color: rgba(25, 118, 210, 0.05);
+      }
+      
+      .result-title {
+        font-weight: 500;
+        color: var(--remindly-primary);
+        margin-bottom: var(--spacing-xs);
+      }
+      
+      .result-description {
+        color: var(--remindly-secondary);
+        font-size: 0.875rem;
+        margin-bottom: var(--spacing-xs);
+      }
+      
+      .result-meta {
+        font-size: 0.75rem;
+        color: var(--remindly-secondary);
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+// Voice recording styles
+.remindly-voice {
+  .recording-button {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    font-size: 2rem;
+    transition: all 0.3s ease;
+    
+    &.recording {
+      animation: pulse 1.5s infinite;
+    }
+  }
+  
+  .recording-status {
+    text-align: center;
+    margin-top: var(--spacing-md);
+    
+    .status-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .status-subtext {
+      color: var(--remindly-secondary);
+      font-size: 0.875rem;
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(25, 118, 210, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+  }
+}
+
+// Notification styles
+.remindly-notification {
+  @extend .remindly-card;
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-left: 4px solid var(--remindly-info);
+  
+  &.unread {
+    background-color: rgba(25, 118, 210, 0.05);
+  }
+  
+  &.error {
+    border-left-color: var(--remindly-error);
+  }
+  
+  &.success {
+    border-left-color: var(--remindly-success);
+  }
+  
+  &.warning {
+    border-left-color: var(--remindly-warning);
+  }
+  
+  .notification-title {
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .notification-message {
+    color: var(--remindly-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .notification-time {
+    font-size: 0.75rem;
+    color: var(--remindly-secondary);
+    opacity: 0.7;
+  }
+}
+
+// Settings styles
+.remindly-settings {
+  .settings-section {
+    margin-bottom: var(--spacing-xl);
+    
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-md);
+      color: var(--remindly-primary);
+    }
+    
+    .section-description {
+      color: var(--remindly-secondary);
+      font-size: 0.875rem;
+      margin-bottom: var(--spacing-lg);
+    }
+  }
+  
+  .setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    .setting-info {
+      flex: 1;
+      -ms-flex: 1;
+      
+      .setting-title {
+        font-weight: 500;
+        margin-bottom: var(--spacing-xs);
+      }
+      
+      .setting-description {
+        color: var(--remindly-secondary);
+        font-size: 0.875rem;
+      }
+    }
+    
+    .setting-control {
+      margin-left: var(--spacing-md);
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .remindly-list-card {
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .remindly-task-item {
+    padding: var(--spacing-sm);
+  }
+  
+  .remindly-shopping-item {
+    padding: var(--spacing-sm);
+  }
+  
+  .remindly-search .search-field {
+    max-width: 100%;
+  }
+}
+
+// Dark theme support
+.v-theme--dark {
+  .remindly-app {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  }
+  
+  .remindly-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .remindly-list-card {
+    .v-card-title {
+      color: #64b5f6;
+    }
+  }
+  
+  .remindly-task-item {
+    &.urgent {
+      background-color: rgba(255, 82, 82, 0.1);
+    }
+  }
+}
+
+// Animation classes
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.slide-enter-from {
+  transform: translateX(-100%);
+}
+
+.slide-leave-to {
+  transform: translateX(100%);
+}
+
+.scale-enter-active,
+.scale-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.scale-enter-from,
+.scale-leave-to {
+  transform: scale(0.9);
+}
+
+// Utility classes
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: var(--spacing-xs); }
+.mb-2 { margin-bottom: var(--spacing-sm); }
+.mb-3 { margin-bottom: var(--spacing-md); }
+.mb-4 { margin-bottom: var(--spacing-lg); }
+.mb-5 { margin-bottom: var(--spacing-xl); }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: var(--spacing-xs); }
+.mt-2 { margin-top: var(--spacing-sm); }
+.mt-3 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+.mt-5 { margin-top: var(--spacing-xl); }
+
+.p-0 { padding: 0; }
+.p-1 { padding: var(--spacing-xs); }
+.p-2 { padding: var(--spacing-sm); }
+.p-3 { padding: var(--spacing-md); }
+.p-4 { padding: var(--spacing-lg); }
+.p-5 { padding: var(--spacing-xl); }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+.flex { display: flex; }
+.flex-col { 
+  flex-direction: column;
+  -ms-flex-direction: column;
+}
+.flex-row { 
+  flex-direction: row;
+  -ms-flex-direction: row;
+}
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+
+.rounded { border-radius: var(--border-radius-md); }
+.rounded-lg { border-radius: var(--border-radius-lg); }
+.rounded-xl { border-radius: var(--border-radius-xl); }
+
+.shadow { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }

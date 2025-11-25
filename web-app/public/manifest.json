@@ -1,0 +1,14 @@
+{
+  "name": "Remindly - Smart Task Management",
+  "short_name": "Remindly",
+  "description": "Smart task management, reminder, and list application with AI support",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "orientation": "portrait-primary",
+  "icons": [],
+  "categories": ["productivity", "utilities"],
+  "lang": "he",
+  "dir": "rtl"
+}
