@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15
+        image: postgres:17
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: remindly_test
+          POSTGRES_PASSWORD: 55809238
+          POSTGRES_DB: remindly
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -49,9 +49,9 @@ jobs:
         NODE_ENV: test
         DB_HOST: localhost
         DB_PORT: 5432
-        DB_NAME: remindly_test
+        DB_NAME: remindly
         DB_USER: postgres
-        DB_PASSWORD: postgres
+        DB_PASSWORD: 55809238
 
     - name: Run linting
       working-directory: ./backend

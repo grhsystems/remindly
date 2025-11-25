@@ -2,8 +2,11 @@ import express from "express";
 import { body, validationResult } from "express-validator";
 import { Task } from "../models/Task.js";
 import { List } from "../models/List.js";
+import { Reminder } from "../models/Reminder.js";
 import { protect } from "../middleware/auth.js";
 import { Op } from "sequelize";
+import aiService from "../services/aiService.js";
+import notificationService from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -542,6 +545,211 @@ router.get("/search", protect, async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Server error",
+    });
+  }
+});
+
+// @desc    Process text with AI to create tasks
+// @route   POST /api/tasks/process-text
+// @access  Private
+router.post(
+  "/process-text",
+  protect,
+  [
+    body("text").isLength({ min: 1 }).withMessage("Text is required"),
+    body("language")
+      .optional()
+      .isIn(["he", "en"])
+      .withMessage("Valid language is required"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { text, language = "he" } = req.body;
+
+      const results = await aiService.processText(text, req.user.id, language);
+
+      res.json({
+        success: true,
+        message: "Text processed successfully",
+        results,
+      });
+    } catch (error) {
+      console.error("AI processing error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to process text with AI",
+      });
+    }
+  }
+);
+
+// @desc    Create reminder for task
+// @route   POST /api/tasks/:id/reminder
+// @access  Private
+router.post(
+  "/:id/reminder",
+  protect,
+  [
+    body("reminderTime")
+      .isISO8601()
+      .withMessage("Valid reminder time is required"),
+    body("reminderType")
+      .isIn(["push", "sms", "email", "call"])
+      .withMessage("Valid reminder type is required"),
+    body("title")
+      .isLength({ min: 1, max: 255 })
+      .withMessage("Title is required"),
+    body("message").isLength({ min: 1 }).withMessage("Message is required"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { id } = req.params;
+      const {
+        reminderTime,
+        reminderType,
+        title,
+        message,
+        metadata = {},
+      } = req.body;
+
+      // Verify task belongs to user
+      const task = await Task.findOne({
+        where: {
+          id: id,
+          userId: req.user.id,
+        },
+      });
+
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const reminder = await Reminder.create({
+        taskId: id,
+        userId: req.user.id,
+        reminderTime: new Date(reminderTime),
+        reminderType,
+        title,
+        message,
+        metadata,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: reminder,
+        message: "Reminder created successfully",
+      });
+    } catch (error) {
+      console.error("Create reminder error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create reminder",
+      });
+    }
+  }
+);
+
+// @desc    Get task reminders
+// @route   GET /api/tasks/:id/reminders
+// @access  Private
+router.get("/:id/reminders", protect, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify task belongs to user
+    const task = await Task.findOne({
+      where: {
+        id: id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const reminders = await Reminder.findAll({
+      where: {
+        taskId: id,
+        userId: req.user.id,
+      },
+      order: [["reminderTime", "ASC"]],
+    });
+
+    res.json({
+      success: true,
+      data: reminders,
+    });
+  } catch (error) {
+    console.error("Get reminders error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch reminders",
+    });
+  }
+});
+
+// @desc    Send reminder immediately
+// @route   POST /api/tasks/:id/reminder/:reminderId/send
+// @access  Private
+router.post("/:id/reminder/:reminderId/send", protect, async (req, res) => {
+  try {
+    const { id, reminderId } = req.params;
+
+    // Verify task belongs to user
+    const task = await Task.findOne({
+      where: {
+        id: id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    const reminder = await Reminder.findOne({
+      where: {
+        id: reminderId,
+        taskId: id,
+        userId: req.user.id,
+      },
+    });
+
+    if (!reminder) {
+      return res.status(404).json({ error: "Reminder not found" });
+    }
+
+    if (reminder.sent) {
+      return res.status(400).json({ error: "Reminder already sent" });
+    }
+
+    await notificationService.sendReminder(reminder);
+    await reminder.update({
+      sent: true,
+      sentAt: new Date(),
+      deliveryStatus: "sent",
+    });
+
+    res.json({
+      success: true,
+      message: "Reminder sent successfully",
+    });
+  } catch (error) {
+    console.error("Send reminder error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send reminder",
     });
   }
 });

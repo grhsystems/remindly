@@ -5,13 +5,22 @@
         <v-card class="remindly-card">
           <v-card-title class="d-flex justify-space-between align-center">
             <span>{{ $t('tasks.title') }}</span>
-            <v-btn
-              color="primary"
-              prepend-icon="mdi-plus"
-              @click="addTask"
-            >
-              {{ $t('tasks.addNew') }}
-            </v-btn>
+            <div class="d-flex gap-2">
+              <v-btn
+                color="secondary"
+                prepend-icon="mdi-robot"
+                @click="showAIDialog = true"
+              >
+                {{ $t('tasks.aiProcess') }}
+              </v-btn>
+              <v-btn
+                color="primary"
+                prepend-icon="mdi-plus"
+                @click="addTask"
+              >
+                {{ $t('tasks.addNew') }}
+              </v-btn>
+            </div>
           </v-card-title>
           <v-card-text>
             <v-tabs v-model="activeTab" class="mb-4">
@@ -67,21 +76,78 @@
                 Create Your First Task
               </v-btn>
             </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+        </v-card-text>
+      </v-card>
+    </v-col>
+  </v-row>
+
+  <!-- AI Processing Dialog -->
+  <v-dialog v-model="showAIDialog" max-width="600">
+    <v-card>
+      <v-card-title>
+        <v-icon class="mr-2">mdi-robot</v-icon>
+        {{ $t('tasks.aiProcess') }}
+      </v-card-title>
+      
+      <v-card-text>
+        <v-textarea
+          v-model="aiText"
+          :label="$t('tasks.aiTextLabel')"
+          :placeholder="$t('tasks.aiTextPlaceholder')"
+          rows="4"
+          variant="outlined"
+        />
+        
+        <v-select
+          v-model="aiLanguage"
+          :items="languages"
+          :label="$t('tasks.language')"
+          variant="outlined"
+        />
+      </v-card-text>
+      
+      <v-card-actions>
+        <v-spacer />
+        <v-btn
+          color="grey"
+          variant="text"
+          @click="showAIDialog = false"
+        >
+          {{ $t('common.cancel') }}
+        </v-btn>
+        <v-btn
+          color="primary"
+          :loading="aiProcessing"
+          @click="processWithAI"
+        >
+          {{ $t('tasks.process') }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</v-container>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { api } from '@/utils/api'
 
 const { t } = useI18n()
 
 const activeTab = ref('all')
 const tasks = ref([])
+
+// AI Processing
+const showAIDialog = ref(false)
+const aiText = ref('')
+const aiLanguage = ref('he')
+const aiProcessing = ref(false)
+
+const languages = [
+  { title: 'עברית', value: 'he' },
+  { title: 'English', value: 'en' }
+]
 
 const filteredTasks = computed(() => {
   switch (activeTab.value) {
@@ -128,6 +194,33 @@ const toggleTask = async (task: any) => {
     console.log('Toggle task:', task.id)
   } catch (error) {
     console.error('Error toggling task:', error)
+  }
+}
+
+const processWithAI = async () => {
+  if (!aiText.value.trim()) return
+  
+  try {
+    aiProcessing.value = true
+    const response = await api.ai.processText(aiText.value, aiLanguage.value)
+    
+    if (response.data.success) {
+      // Add created tasks to the list
+      if (response.data.results.tasks) {
+        tasks.value.push(...response.data.results.tasks)
+      }
+      
+      // Show success message
+      console.log('AI processing completed successfully')
+      
+      // Reset form
+      aiText.value = ''
+      showAIDialog.value = false
+    }
+  } catch (error) {
+    console.error('Error processing with AI:', error)
+  } finally {
+    aiProcessing.value = false
   }
 }
 

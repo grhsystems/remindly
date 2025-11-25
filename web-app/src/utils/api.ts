@@ -188,11 +188,94 @@ export const apiService = {
 
   // AI Processing
   ai: {
-    processText: (text: string) =>
-      api.post<ApiResponse<any>>('/ai/process', { text }),
+    processText: (text: string, language: string = 'he') =>
+      api.post<ApiResponse<any>>('/ai/process-text', { text, language }),
     
-    translate: (text: string, targetLanguage: string) =>
-      api.post<ApiResponse<{ translatedText: string }>>('/ai/translate', { text, targetLanguage })
+    translate: (text: string, fromLang: string, toLang: string) =>
+      api.post<ApiResponse<{ translatedText: string }>>('/ai/translate', { text, fromLang, toLang }),
+    
+    getSuggestions: (type?: string, language: string = 'he') =>
+      api.get<ApiResponse<any[]>>(`/ai/suggestions?type=${type}&language=${language}`),
+    
+    getHistory: (page: number = 1, limit: number = 20) =>
+      api.get<ApiResponse<any>>(`/ai/history?page=${page}&limit=${limit}`),
+    
+    health: () => api.get<ApiResponse<any>>('/ai/health')
+  },
+
+  // Price Search
+  prices: {
+    search: (product: string, options: any = {}) =>
+      api.get<ApiResponse<any>>(`/prices/search?product=${product}`, { params: options }),
+    
+    getHistory: (product: string, days: number = 30) =>
+      api.get<ApiResponse<any>>(`/prices/history/${product}?days=${days}`),
+    
+    getStats: (product: string) =>
+      api.get<ApiResponse<any>>(`/prices/stats/${product}`),
+    
+    getSources: () => api.get<ApiResponse<any[]>>('/prices/sources'),
+    
+    getStores: () => api.get<ApiResponse<any[]>>('/prices/stores'),
+    
+    getCategories: () => api.get<ApiResponse<any[]>>('/prices/categories')
+  },
+
+  // Shopping Items
+  shoppingItems: {
+    getAll: (params: any = {}) =>
+      api.get<ApiResponse<any>>('/shopping-items', { params }),
+    
+    getById: (id: string) =>
+      api.get<ApiResponse<any>>(`/shopping-items/${id}`),
+    
+    create: (data: any) =>
+      api.post<ApiResponse<any>>('/shopping-items', data),
+    
+    update: (id: string, data: any) =>
+      api.put<ApiResponse<any>>(`/shopping-items/${id}`, data),
+    
+    delete: (id: string) =>
+      api.delete<ApiResponse<void>>(`/shopping-items/${id}`),
+    
+    toggle: (id: string) =>
+      api.patch<ApiResponse<any>>(`/shopping-items/${id}/toggle`),
+    
+    searchPrice: (id: string) =>
+      api.post<ApiResponse<any>>(`/shopping-items/${id}/search-price`),
+    
+    updatePrice: (id: string, data: any) =>
+      api.patch<ApiResponse<any>>(`/shopping-items/${id}/update-price`, data),
+    
+    reorder: (items: any[]) =>
+      api.patch<ApiResponse<void>>('/shopping-items/reorder', { items }),
+    
+    getStats: (params: any = {}) =>
+      api.get<ApiResponse<any>>('/shopping-items/stats/overview', { params })
+  },
+
+  // Reminders
+  reminders: {
+    getAll: (params: any = {}) =>
+      api.get<ApiResponse<any>>('/reminders', { params }),
+    
+    getById: (id: string) =>
+      api.get<ApiResponse<any>>(`/reminders/${id}`),
+    
+    create: (data: any) =>
+      api.post<ApiResponse<any>>('/reminders', data),
+    
+    update: (id: string, data: any) =>
+      api.put<ApiResponse<any>>(`/reminders/${id}`, data),
+    
+    delete: (id: string) =>
+      api.delete<ApiResponse<void>>(`/reminders/${id}`),
+    
+    send: (id: string) =>
+      api.post<ApiResponse<void>>(`/reminders/${id}/send`),
+    
+    getStats: (params: any = {}) =>
+      api.get<ApiResponse<any>>('/reminders/stats/overview', { params })
   }
 }
 

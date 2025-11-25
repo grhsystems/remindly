@@ -2,9 +2,12 @@ import express from "express";
 import { body, validationResult } from "express-validator";
 import { Task } from "../models/Task.js";
 import { List } from "../models/List.js";
+import { ShoppingItem } from "../models/ShoppingItem.js";
 import { protect } from "../middleware/auth.js";
 import { Op } from "sequelize";
 import { logger } from "../utils/logger.js";
+import priceService from "../services/priceService.js";
+import aiService from "../services/aiService.js";
 
 const router = express.Router();
 
@@ -356,6 +359,126 @@ router.get("/stats", protect, async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Server error",
+    });
+  }
+});
+
+// @desc    Process shopping text with AI
+// @route   POST /api/shopping/process-text
+// @access  Private
+router.post(
+  "/process-text",
+  protect,
+  [
+    body("text").isLength({ min: 1 }).withMessage("Text is required"),
+    body("language")
+      .optional()
+      .isIn(["he", "en"])
+      .withMessage("Valid language is required"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { text, language = "he" } = req.body;
+
+      const results = await aiService.processText(text, req.user.id, language);
+
+      res.json({
+        success: true,
+        message: "Shopping text processed successfully",
+        results,
+      });
+    } catch (error) {
+      logger.error("Shopping AI processing error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to process shopping text with AI",
+      });
+    }
+  }
+);
+
+// @desc    Search prices for shopping items
+// @route   GET /api/shopping/search-prices?product=name
+// @access  Private
+router.get("/search-prices", protect, async (req, res) => {
+  try {
+    const { product, limit = 10 } = req.query;
+
+    if (!product) {
+      return res.status(400).json({
+        success: false,
+        error: "Product name is required",
+      });
+    }
+
+    const prices = await priceService.searchPrices(product, {
+      limit: parseInt(limit),
+    });
+
+    res.json({
+      success: true,
+      product,
+      prices,
+      total: prices.length,
+    });
+  } catch (error) {
+    logger.error("Price search error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to search prices",
+    });
+  }
+});
+
+// @desc    Get price history for a product
+// @route   GET /api/shopping/price-history/:product
+// @access  Private
+router.get("/price-history/:product", protect, async (req, res) => {
+  try {
+    const { product } = req.params;
+    const { days = 30 } = req.query;
+
+    const history = await priceService.getPriceHistory(product, parseInt(days));
+
+    res.json({
+      success: true,
+      product,
+      history,
+      total: history.length,
+    });
+  } catch (error) {
+    logger.error("Price history error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch price history",
+    });
+  }
+});
+
+// @desc    Get price statistics for a product
+// @route   GET /api/shopping/price-stats/:product
+// @access  Private
+router.get("/price-stats/:product", protect, async (req, res) => {
+  try {
+    const { product } = req.params;
+
+    const stats = await priceService.getPriceStats(product);
+
+    res.json({
+      success: true,
+      product,
+      stats,
+    });
+  } catch (error) {
+    logger.error("Price stats error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch price statistics",
     });
   }
 });

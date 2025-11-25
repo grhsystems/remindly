@@ -1,242 +1,420 @@
 import OpenAI from "openai";
-import { logger } from "../utils/logger.js";
+import { Task } from "../models/Task.js";
+import { List } from "../models/List.js";
+import { ShoppingItem } from "../models/ShoppingItem.js";
+import { Reminder } from "../models/Reminder.js";
+import { Category } from "../models/Category.js";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-/**
- * Parse task from natural language text
- * @param {string} text - User input text
- * @param {string} language - Language code (he/en)
- * @returns {Promise<Object>} Parsed task data
- */
-export const parseTaskFromText = async (text, language = "he") => {
-  try {
-    const systemPrompt =
+class AIService {
+  /**
+   * Process text input and extract tasks, shopping items, or other actionable items
+   * @param {string} text - Input text to process
+   * @param {string} userId - User ID
+   * @param {string} language - Language of the text (he/en)
+   * @returns {Object} Processed results
+   */
+  async processText(text, userId, language = "he") {
+    try {
+      const prompt = this.buildPrompt(text, language);
+      const response = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: `You are an AI assistant that processes natural language text and extracts actionable items like tasks, shopping items, appointments, etc. 
+            You should analyze the text and return structured data in JSON format.
+            The user's language is ${language}.`,
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 1000,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content);
+      return await this.processResults(result, userId, language);
+    } catch (error) {
+      console.error("AI Service Error:", error);
+      throw new Error("Failed to process text with AI");
+    }
+  }
+
+  /**
+   * Build prompt for AI processing
+   */
+  buildPrompt(text, language) {
+    const languageInstructions =
       language === "he"
-        ? `אתה עוזר AI שמנתח טקסט חופשי ומחלץ מידע על משימות.
-נתח את הטקסט הבא וזהה:
-- סוג המשימה (task/shopping/call/meeting/doctor/repair/general)
-- כותרת המשימה
-- תיאור (אם יש)
-- תאריך ושעה (אם יש)
-- עדיפות (low/medium/high/urgent)
-- שם איש קשר (אם יש)
-- רשימת פריטים לקנייה (אם יש)
+        ? "עברית - זהה תאריכים בעברית (היום, מחר, השבוע, וכו')"
+        : "English - identify dates in English (today, tomorrow, this week, etc.)";
 
-החזר תשובה בפורמט JSON בלבד, ללא טקסט נוסף.`
-        : `You are an AI assistant that analyzes free text and extracts task information.
-Analyze the following text and identify:
-- Task type (task/shopping/call/meeting/doctor/repair/general)
-- Task title
-- Description (if any)
-- Date and time (if any)
-- Priority (low/medium/high/urgent)
-- Contact name (if any)
-- Shopping items list (if any)
+    return `Analyze the following text and extract actionable items. Return a JSON object with this structure:
 
-Return response in JSON format only, without additional text.`;
-
-    const userPrompt =
-      language === "he"
-        ? `נתח את הטקסט הבא וחלץ מידע:
-
-"${text}"
-
-פורמט התשובה:
 {
-  "type": "task|shopping|call|meeting|doctor|repair|general",
-  "title": "כותרת המשימה",
-  "description": "תיאור מפורט",
-  "dueDate": "YYYY-MM-DD או null",
-  "dueTime": "HH:MM או null",
-  "priority": "low|medium|high|urgent",
-  "contactName": "שם איש קשר או null",
-  "items": ["פריט 1", "פריט 2"] או null,
-  "reminderBefore": מספר דקות לתזכורת או null
-}`
-        : `Analyze the following text and extract information:
+  "tasks": [
+    {
+      "title": "Task title",
+      "description": "Task description",
+      "priority": "low|medium|high|urgent",
+      "dueDate": "YYYY-MM-DD or relative date",
+      "dueTime": "HH:MM",
+      "listType": "tasks|shopping|calls|meetings|appointments|repairs|ideas"
+    }
+  ],
+  "shoppingItems": [
+    {
+      "productName": "Product name",
+      "quantity": 1,
+      "unit": "pcs|kg|liter|etc",
+      "category": "food|household|etc"
+    }
+  ],
+  "appointments": [
+    {
+      "title": "Appointment title",
+      "description": "Description",
+      "date": "YYYY-MM-DD",
+      "time": "HH:MM",
+      "location": "Location if mentioned"
+    }
+  ],
+  "contacts": [
+    {
+      "name": "Contact name",
+      "phone": "Phone number if mentioned",
+      "action": "call|meeting|etc"
+    }
+  ]
+}
 
-"${text}"
+Text to analyze: "${text}"
 
-Response format:
-{
-  "type": "task|shopping|call|meeting|doctor|repair|general",
-  "title": "Task title",
-  "description": "Detailed description",
-  "dueDate": "YYYY-MM-DD or null",
-  "dueTime": "HH:MM or null",
-  "priority": "low|medium|high|urgent",
-  "contactName": "Contact name or null",
-  "items": ["Item 1", "Item 2"] or null,
-  "reminderBefore": number of minutes or null
-}`;
+Instructions:
+- ${languageInstructions}
+- Extract dates and times accurately
+- Identify the type of action needed
+- If it's a shopping item, include quantity and unit
+- If it's a task, determine priority based on urgency words
+- If it's an appointment, include location if mentioned
+- Return empty arrays if no items found in that category`;
+  }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      response_format: { type: "json_object" },
+  /**
+   * Process AI results and create database entries
+   */
+  async processResults(results, userId, language) {
+    const createdItems = {
+      tasks: [],
+      shoppingItems: [],
+      appointments: [],
+      reminders: [],
+    };
+
+    try {
+      // Process tasks
+      if (results.tasks && results.tasks.length > 0) {
+        for (const taskData of results.tasks) {
+          const list = await this.getOrCreateList(
+            userId,
+            taskData.listType,
+            language
+          );
+          const task = await Task.create({
+            listId: list.id,
+            userId: userId,
+            title: taskData.title,
+            description: taskData.description,
+            priority: taskData.priority || "medium",
+            dueDate: this.parseDate(taskData.dueDate),
+            dueTime: taskData.dueTime,
+            metadata: {
+              aiGenerated: true,
+              originalText: taskData.originalText,
+            },
+          });
+
+          createdItems.tasks.push(task);
+
+          // Create reminder if due date/time is specified
+          if (taskData.dueDate || taskData.dueTime) {
+            const reminderTime = this.calculateReminderTime(
+              taskData.dueDate,
+              taskData.dueTime
+            );
+            if (reminderTime) {
+              const reminder = await Reminder.create({
+                taskId: task.id,
+                userId: userId,
+                reminderTime: reminderTime,
+                reminderType: "push",
+                title: `תזכורת: ${taskData.title}`,
+                message: taskData.description || taskData.title,
+                metadata: {
+                  aiGenerated: true,
+                },
+              });
+              createdItems.reminders.push(reminder);
+            }
+          }
+        }
+      }
+
+      // Process shopping items
+      if (results.shoppingItems && results.shoppingItems.length > 0) {
+        const shoppingList = await this.getOrCreateList(
+          userId,
+          "shopping",
+          language
+        );
+
+        for (const itemData of results.shoppingItems) {
+          const category = await this.getOrCreateCategory(itemData.category);
+
+          const shoppingItem = await ShoppingItem.create({
+            listId: shoppingList.id,
+            userId: userId,
+            productName: itemData.productName,
+            quantity: itemData.quantity || 1,
+            unit: itemData.unit || "pcs",
+            categoryId: category?.id,
+            metadata: {
+              aiGenerated: true,
+            },
+          });
+
+          createdItems.shoppingItems.push(shoppingItem);
+        }
+      }
+
+      // Process appointments
+      if (results.appointments && results.appointments.length > 0) {
+        const appointmentsList = await this.getOrCreateList(
+          userId,
+          "appointments",
+          language
+        );
+
+        for (const appointmentData of results.appointments) {
+          const task = await Task.create({
+            listId: appointmentsList.id,
+            userId: userId,
+            title: appointmentData.title,
+            description: appointmentData.description,
+            priority: "high",
+            dueDate: this.parseDate(appointmentData.date),
+            dueTime: appointmentData.time,
+            metadata: {
+              aiGenerated: true,
+              location: appointmentData.location,
+              type: "appointment",
+            },
+          });
+
+          createdItems.tasks.push(task);
+
+          // Create reminder for appointment
+          const reminderTime = this.calculateReminderTime(
+            appointmentData.date,
+            appointmentData.time,
+            15
+          );
+          if (reminderTime) {
+            const reminder = await Reminder.create({
+              taskId: task.id,
+              userId: userId,
+              reminderTime: reminderTime,
+              reminderType: "push",
+              title: `תזכורת פגישה: ${appointmentData.title}`,
+              message: appointmentData.description || appointmentData.title,
+              metadata: {
+                aiGenerated: true,
+                type: "appointment",
+              },
+            });
+            createdItems.reminders.push(reminder);
+          }
+        }
+      }
+
+      return createdItems;
+    } catch (error) {
+      console.error("Error processing AI results:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get or create a list for the user
+   */
+  async getOrCreateList(userId, listType, language) {
+    const listNames = {
+      he: {
+        tasks: "משימות",
+        shopping: "קניות",
+        calls: "שיחות טלפון",
+        meetings: "פגישות",
+        appointments: "תורים",
+        repairs: "תיקונים",
+        ideas: "רעיונות",
+      },
+      en: {
+        tasks: "Tasks",
+        shopping: "Shopping",
+        calls: "Phone Calls",
+        meetings: "Meetings",
+        appointments: "Appointments",
+        repairs: "Repairs",
+        ideas: "Ideas",
+      },
+    };
+
+    const listIcons = {
+      tasks: "mdi-checkbox-marked-circle-outline",
+      shopping: "mdi-cart",
+      calls: "mdi-phone",
+      meetings: "mdi-calendar",
+      appointments: "mdi-hospital",
+      repairs: "mdi-wrench",
+      ideas: "mdi-lightbulb",
+    };
+
+    const listColors = {
+      tasks: "#E91E63",
+      shopping: "#2196F3",
+      calls: "#4CAF50",
+      meetings: "#FF9800",
+      appointments: "#9C27B0",
+      repairs: "#F44336",
+      ideas: "#FFC107",
+    };
+
+    let list = await List.findOne({
+      where: {
+        userId: userId,
+        name: listNames[language][listType],
+      },
     });
 
-    const result = JSON.parse(completion.choices[0].message.content);
-    logger.info("AI parsed task successfully", { text, result });
-    return result;
-  } catch (error) {
-    logger.error("AI parse task error:", error);
-    throw new Error("Failed to parse task from text");
-  }
-};
+    if (!list) {
+      list = await List.create({
+        userId: userId,
+        name: listNames[language][listType],
+        description: `רשימת ${listNames[language][listType]}`,
+        icon: listIcons[listType],
+        color: listColors[listType],
+        isDefault: true,
+      });
+    }
 
-/**
- * Translate text between languages
- * @param {string} text - Text to translate
- * @param {string} from - Source language
- * @param {string} to - Target language
- * @returns {Promise<string>} Translated text
- */
-export const translateText = async (text, from = "he", to = "en") => {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        {
-          role: "system",
-          content: `You are a professional translator. Translate the following text from ${from} to ${to}. Return only the translated text, nothing else.`,
-        },
-        {
-          role: "user",
-          content: text,
-        },
-      ],
-      temperature: 0.3,
+    return list;
+  }
+
+  /**
+   * Get or create a category
+   */
+  async getOrCreateCategory(categoryName) {
+    if (!categoryName) return null;
+
+    let category = await Category.findOne({
+      where: {
+        name: categoryName,
+      },
     });
 
-    const translated = completion.choices[0].message.content.trim();
-    logger.info("AI translated text successfully", {
-      text,
-      translated,
-      from,
-      to,
-    });
-    return translated;
-  } catch (error) {
-    logger.error("AI translate error:", error);
-    throw new Error("Failed to translate text");
+    if (!category) {
+      category = await Category.create({
+        name: categoryName,
+        isSystem: false,
+        usageCount: 1,
+      });
+    } else {
+      await category.increment("usageCount");
+    }
+
+    return category;
   }
-};
 
-/**
- * Generate task suggestions based on context
- * @param {Array} existingTasks - User's existing tasks
- * @param {string} language - Language code
- * @returns {Promise<Array>} Task suggestions
- */
-export const generateTaskSuggestions = async (
-  existingTasks,
-  language = "he"
-) => {
-  try {
-    const tasksContext = existingTasks
-      .map((t) => `${t.title}: ${t.description || ""}`)
-      .join("\n");
+  /**
+   * Parse date string to Date object
+   */
+  parseDate(dateString) {
+    if (!dateString) return null;
 
-    const systemPrompt =
-      language === "he"
-        ? "אתה עוזר AI שמציע משימות רלוונטיות על סמך המשימות הקיימות של המשתמש."
-        : "You are an AI assistant that suggests relevant tasks based on user's existing tasks.";
+    // Handle relative dates
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const userPrompt =
-      language === "he"
-        ? `בהתבסס על המשימות הקיימות הבאות, הצע 3 משימות נוספות שעשויות להיות רלוונטיות:
-
-${tasksContext}
-
-החזר מערך JSON עם 3 הצעות משימות בפורמט:
-[
-  {
-    "title": "כותרת המשימה",
-    "description": "תיאור",
-    "priority": "low|medium|high"
+    switch (dateString.toLowerCase()) {
+      case "today":
+      case "היום":
+        return today;
+      case "tomorrow":
+      case "מחר":
+        return new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      case "this week":
+      case "השבוע":
+        return new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      default:
+        return new Date(dateString);
+    }
   }
-]`
-        : `Based on the following existing tasks, suggest 3 additional relevant tasks:
 
-${tasksContext}
+  /**
+   * Calculate reminder time
+   */
+  calculateReminderTime(dueDate, dueTime, minutesBefore = 15) {
+    if (!dueDate) return null;
 
-Return JSON array with 3 task suggestions in format:
-[
-  {
-    "title": "Task title",
-    "description": "Description",
-    "priority": "low|medium|high"
+    const date = this.parseDate(dueDate);
+    if (!date) return null;
+
+    let reminderTime = new Date(date);
+
+    if (dueTime) {
+      const [hours, minutes] = dueTime.split(":");
+      reminderTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    }
+
+    // Subtract minutes before
+    reminderTime.setMinutes(reminderTime.getMinutes() - minutesBefore);
+
+    return reminderTime;
   }
-]`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-    });
+  /**
+   * Translate text between languages
+   */
+  async translateText(text, fromLang, toLang) {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: `Translate the following text from ${fromLang} to ${toLang}. Return only the translated text, no additional formatting.`,
+          },
+          {
+            role: "user",
+            content: text,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 500,
+      });
 
-    const suggestions = JSON.parse(completion.choices[0].message.content);
-    logger.info("AI generated task suggestions", { count: suggestions.length });
-    return suggestions;
-  } catch (error) {
-    logger.error("AI generate suggestions error:", error);
-    throw new Error("Failed to generate task suggestions");
+      return response.choices[0].message.content.trim();
+    } catch (error) {
+      console.error("Translation error:", error);
+      throw new Error("Failed to translate text");
+    }
   }
-};
+}
 
-/**
- * Analyze task priority based on content and deadline
- * @param {Object} task - Task object
- * @returns {Promise<string>} Priority level
- */
-export const analyzePriority = async (task) => {
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an AI that analyzes task priority. Return only one word: low, medium, high, or urgent.",
-        },
-        {
-          role: "user",
-          content: `Analyze priority for this task:
-Title: ${task.title}
-Description: ${task.description || "None"}
-Due Date: ${task.dueDate || "None"}
-Due Time: ${task.dueTime || "None"}
-
-Return priority level (low/medium/high/urgent):`,
-        },
-      ],
-      temperature: 0.3,
-    });
-
-    const priority = completion.choices[0].message.content.trim().toLowerCase();
-    logger.info("AI analyzed priority", { task: task.title, priority });
-    return priority;
-  } catch (error) {
-    logger.error("AI analyze priority error:", error);
-    return "medium"; // Default priority
-  }
-};
-
-export default {
-  parseTaskFromText,
-  translateText,
-  generateTaskSuggestions,
-  analyzePriority,
-};
+export default new AIService();

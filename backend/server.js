@@ -19,6 +19,9 @@ import mediaGalleryRoutes from "./routes/mediaGallery.js";
 import notificationRoutes from "./routes/notifications.js";
 import searchRoutes from "./routes/search.js";
 import aiRoutes from "./routes/ai.js";
+import reminderRoutes from "./routes/reminders.js";
+import shoppingItemRoutes from "./routes/shoppingItems.js";
+import priceRoutes from "./routes/prices.js";
 
 // Import models to initialize associations
 import "./models/associations.js";
@@ -123,6 +126,9 @@ app.use("/api/media-gallery", mediaGalleryRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/reminders", reminderRoutes);
+app.use("/api/shopping-items", shoppingItemRoutes);
+app.use("/api/prices", priceRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -132,7 +138,7 @@ app.use(errorHandler);
 
 // Database synchronization and server start
 import sequelize from "./config/database.js";
-import "./models/associations.js";
+// Note: associations.js is already imported at the top of the file
 
 sequelize
   .sync({ force: false })

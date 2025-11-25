@@ -21,7 +21,7 @@
 
           <v-col cols="auto" class="mr-6">
             <div class="logo-section" @click="$router.push('/')">
-              <v-icon class="mr-2 logo-icon">mdi-bell-outline</v-icon>
+              <img src="/LogoRemindly.png" alt="Remindly Logo" class="app-bar-logo" />
               <span class="logo-text">REMINDLY</span>
             </div>
           </v-col>
@@ -400,6 +400,30 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 
+.app-bar-logo {
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  object-fit: contain;
+}
+
+/* Responsive app bar logo for mobile */
+@media (max-width: 768px) {
+  .app-bar-logo {
+    width: 24px;
+    height: 24px;
+    margin-right: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-bar-logo {
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+  }
+}
+
 .logo-icon {
   color: #2c3e50;
   font-size: 24px;
@@ -410,6 +434,21 @@ onMounted(async () => {
   font-weight: 900;
   color: #2c3e50;
   letter-spacing: 1px;
+}
+
+/* Responsive logo text for mobile */
+@media (max-width: 768px) {
+  .logo-text {
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-text {
+    font-size: 1rem;
+    letter-spacing: 0px;
+  }
 }
 
 .menu-btn {

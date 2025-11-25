@@ -1,245 +1,88 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import { protect } from "../middleware/auth.js";
-import {
-  parseTaskFromText,
-  translateText,
-  generateTaskSuggestions,
-  analyzePriority,
-} from "../services/aiService.js";
-import { Task } from "../models/Task.js";
-import { List } from "../models/List.js";
-import { logger } from "../utils/logger.js";
+import { protect as auth } from "../middleware/auth.js";
+import aiService from "../services/aiService.js";
 
 const router = express.Router();
 
-// @desc    Parse task from natural language
-// @route   POST /api/ai/parse
-// @access  Private
+// Process text with AI
 router.post(
-  "/parse",
-  protect,
+  "/process-text",
+  auth,
   [
-    body("text")
-      .trim()
-      .isLength({ min: 1, max: 1000 })
-      .withMessage("Text must be between 1 and 1000 characters"),
+    body("text").isLength({ min: 1 }).withMessage("Text is required"),
     body("language")
       .optional()
       .isIn(["he", "en"])
-      .withMessage("Language must be he or en"),
+      .withMessage("Valid language is required"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: errors.array(),
-        });
+        return res.status(400).json({ errors: errors.array() });
       }
 
       const { text, language = "he" } = req.body;
 
-      const parsedTask = await parseTaskFromText(text, language);
+      const results = await aiService.processText(text, req.user.id, language);
 
       res.json({
         success: true,
-        data: parsedTask,
+        message: "Text processed successfully",
+        results,
       });
     } catch (error) {
-      logger.error("AI parse error:", error);
+      console.error("AI processing error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to parse task",
+        error: "Failed to process text with AI",
       });
     }
   }
 );
 
-// @desc    Parse and create task
-// @route   POST /api/ai/parse-and-create
-// @access  Private
-router.post(
-  "/parse-and-create",
-  protect,
-  [
-    body("text")
-      .trim()
-      .isLength({ min: 1, max: 1000 })
-      .withMessage("Text must be between 1 and 1000 characters"),
-    body("language")
-      .optional()
-      .isIn(["he", "en"])
-      .withMessage("Language must be he or en"),
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: errors.array(),
-        });
-      }
-
-      const { text, language = "he" } = req.body;
-
-      // Parse the task
-      const parsedTask = await parseTaskFromText(text, language);
-
-      // Find or create appropriate list
-      let list;
-      const listMap = {
-        shopping: {
-          name: language === "he" ? "קניות" : "Shopping",
-          icon: "mdi-cart",
-          color: "#4CAF50",
-        },
-        call: {
-          name: language === "he" ? "שיחות טלפון" : "Phone Calls",
-          icon: "mdi-phone",
-          color: "#2196F3",
-        },
-        meeting: {
-          name: language === "he" ? "פגישות" : "Meetings",
-          icon: "mdi-calendar",
-          color: "#9C27B0",
-        },
-        doctor: {
-          name: language === "he" ? "תורים לרופאים" : "Doctor Appointments",
-          icon: "mdi-hospital",
-          color: "#F44336",
-        },
-        repair: {
-          name: language === "he" ? "תיקונים" : "Repairs",
-          icon: "mdi-wrench",
-          color: "#FF9800",
-        },
-        general: {
-          name: language === "he" ? "משימות כלליות" : "General Tasks",
-          icon: "mdi-check-circle",
-          color: "#607D8B",
-        },
-      };
-
-      const listConfig = listMap[parsedTask.type] || listMap.general;
-
-      list = await List.findOne({
-        where: {
-          userId: req.user.id,
-          name: listConfig.name,
-        },
-      });
-
-      if (!list) {
-        const lastList = await List.findOne({
-          where: { userId: req.user.id },
-          order: [["position", "DESC"]],
-        });
-        const position = lastList ? lastList.position + 1 : 0;
-
-        list = await List.create({
-          name: listConfig.name,
-          icon: listConfig.icon,
-          color: listConfig.color,
-          position,
-          userId: req.user.id,
-        });
-      }
-
-      // Create the task
-      const lastTask = await Task.findOne({
-        where: { listId: list.id },
-        order: [["position", "DESC"]],
-      });
-      const position = lastTask ? lastTask.position + 1 : 0;
-
-      const task = await Task.create({
-        title: parsedTask.title,
-        description: parsedTask.description,
-        listId: list.id,
-        priority: parsedTask.priority || "medium",
-        dueDate: parsedTask.dueDate,
-        dueTime: parsedTask.dueTime,
-        position,
-        userId: req.user.id,
-      });
-
-      // Include list data in response
-      const taskWithList = await Task.findByPk(task.id, {
-        include: [
-          {
-            model: List,
-            as: "list",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
-      });
-
-      res.status(201).json({
-        success: true,
-        data: {
-          task: taskWithList,
-          parsedData: parsedTask,
-        },
-      });
-    } catch (error) {
-      logger.error("AI parse and create error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to parse and create task",
-      });
-    }
-  }
-);
-
-// @desc    Translate text
-// @route   POST /api/ai/translate
-// @access  Private
+// Translate text
 router.post(
   "/translate",
-  protect,
+  auth,
   [
-    body("text")
-      .trim()
-      .isLength({ min: 1, max: 5000 })
-      .withMessage("Text must be between 1 and 5000 characters"),
-    body("from")
-      .isIn(["he", "en", "ar", "es", "fr"])
-      .withMessage("Invalid source language"),
-    body("to")
-      .isIn(["he", "en", "ar", "es", "fr"])
-      .withMessage("Invalid target language"),
+    body("text").isLength({ min: 1 }).withMessage("Text is required"),
+    body("fromLang")
+      .isIn(["he", "en"])
+      .withMessage("Valid source language is required"),
+    body("toLang")
+      .isIn(["he", "en"])
+      .withMessage("Valid target language is required"),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: errors.array(),
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { text, fromLang, toLang } = req.body;
+
+      if (fromLang === toLang) {
+        return res.json({
+          success: true,
+          translatedText: text,
         });
       }
 
-      const { text, from, to } = req.body;
-
-      const translated = await translateText(text, from, to);
+      const translatedText = await aiService.translateText(
+        text,
+        fromLang,
+        toLang
+      );
 
       res.json({
         success: true,
-        data: {
-          original: text,
-          translated,
-          from,
-          to,
-        },
+        translatedText,
       });
     } catch (error) {
-      logger.error("AI translate error:", error);
+      console.error("Translation error:", error);
       res.status(500).json({
         success: false,
         error: "Failed to translate text",
@@ -248,73 +91,119 @@ router.post(
   }
 );
 
-// @desc    Get task suggestions
-// @route   GET /api/ai/suggestions
-// @access  Private
-router.get("/suggestions", protect, async (req, res) => {
+// Get AI processing suggestions
+router.get("/suggestions", auth, async (req, res) => {
   try {
-    const { language = "he" } = req.query;
+    const { type, language = "he" } = req.query;
 
-    // Get user's recent tasks
-    const recentTasks = await Task.findAll({
-      where: { userId: req.user.id },
-      order: [["createdAt", "DESC"]],
-      limit: 10,
-    });
+    const suggestions = {
+      he: {
+        tasks: [
+          "תזכיר לי להתקשר לרופא מחר ב-10:00",
+          "לקנות חלב, ביצים ולחם מהסופר",
+          "פגישה עם דני ביום רביעי בשעה 3",
+          "לתקן את הדלת בחדר השינה",
+          "להכין מצגת לעבודה",
+        ],
+        shopping: [
+          "חלב 1 ליטר",
+          "ביצים 12 יחידות",
+          "לחם שחור 1 כיכר",
+          "עגבניות 1 קילו",
+          "בננות 2 קילו",
+        ],
+        appointments: [
+          "תור לרופא שיניים ביום שני ב-14:00",
+          "פגישה עם עורך הדין ביום שלישי ב-16:30",
+          "בדיקה רפואית ביום חמישי ב-09:00",
+        ],
+      },
+      en: {
+        tasks: [
+          "Remind me to call the doctor tomorrow at 10:00",
+          "Buy milk, eggs and bread from the store",
+          "Meeting with Danny on Wednesday at 3 PM",
+          "Fix the door in the bedroom",
+          "Prepare presentation for work",
+        ],
+        shopping: [
+          "Milk 1 liter",
+          "Eggs 12 pieces",
+          "Black bread 1 loaf",
+          "Tomatoes 1 kg",
+          "Bananas 2 kg",
+        ],
+        appointments: [
+          "Dentist appointment on Monday at 2:00 PM",
+          "Meeting with lawyer on Tuesday at 4:30 PM",
+          "Medical checkup on Thursday at 9:00 AM",
+        ],
+      },
+    };
 
-    const suggestions = await generateTaskSuggestions(recentTasks, language);
+    const languageSuggestions = suggestions[language] || suggestions.en;
+    const typeSuggestions = type
+      ? languageSuggestions[type]
+      : Object.values(languageSuggestions).flat();
 
     res.json({
       success: true,
-      data: suggestions,
+      suggestions: typeSuggestions,
     });
   } catch (error) {
-    logger.error("AI suggestions error:", error);
+    console.error("Error fetching suggestions:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to generate suggestions",
+      error: "Failed to fetch suggestions",
     });
   }
 });
 
-// @desc    Analyze task priority
-// @route   POST /api/ai/analyze-priority
-// @access  Private
-router.post(
-  "/analyze-priority",
-  protect,
-  [
-    body("title").trim().isLength({ min: 1 }).withMessage("Title is required"),
-    body("description").optional().trim(),
-    body("dueDate").optional().isISO8601(),
-    body("dueTime").optional(),
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: errors.array(),
-        });
-      }
+// Get AI processing history
+router.get("/history", auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
 
-      const task = req.body;
-      const priority = await analyzePriority(task);
-
-      res.json({
-        success: true,
-        data: { priority },
-      });
-    } catch (error) {
-      logger.error("AI analyze priority error:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to analyze priority",
-      });
-    }
+    // This would typically come from a separate AI processing history table
+    // For now, return empty results
+    res.json({
+      success: true,
+      history: [],
+      total: 0,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: 0,
+    });
+  } catch (error) {
+    console.error("Error fetching AI history:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch AI history",
+    });
   }
-);
+});
+
+// Test AI service health
+router.get("/health", auth, async (req, res) => {
+  try {
+    // Simple test to check if AI service is working
+    const testText = "Test message for AI service";
+    const result = await aiService.processText(testText, req.user.id, "en");
+
+    res.json({
+      success: true,
+      message: "AI service is healthy",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("AI service health check failed:", error);
+    res.status(500).json({
+      success: false,
+      error: "AI service is not healthy",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 export default router;

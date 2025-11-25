@@ -6,7 +6,7 @@
       <div class="header-section">
         <div class="header-content">
           <div class="app-title-container">
-            <v-icon class="mr-2 header-icon">mdi-bell</v-icon>
+            <img src="/LogoRemindly.png" alt="Remindly Logo" class="app-logo" />
             <h1 class="app-title">REMINDLY</h1>
           </div>
           <p class="app-subtitle">ORGANIZE. REMEMBER. ACHIEVE</p>
@@ -44,7 +44,7 @@
 
           <!-- TO-DOs Card -->
           <v-col cols="12" sm="6" class="mb-4">
-            <v-card class="category-card todos-card" elevation="4" @click="navigateToTasks">
+            <v-card class="category-card todos-card" elevation="4" @click="navigateToTasksLists">
               <v-card-text class="pa-6">
                 <div class="card-content">
                   <v-icon size="48" color="white" class="mb-3">mdi-checkbox-marked-circle-outline</v-icon>
@@ -252,6 +252,10 @@ const navigateToTasks = () => {
   router.push('/tasks')
 }
 
+const navigateToTasksLists = () => {
+  router.push('/tasks-lists')
+}
+
 const navigateToIdeas = () => {
   router.push('/lists')
 }
@@ -312,11 +316,12 @@ onMounted(() => {
   padding: 0;
 }
 
-.header-section {
-  background: linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #DDA0DD 100%);
-  padding: 2rem 1rem;
-  text-align: center;
-}
+        .header-section {
+          background: linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #DDA0DD 100%);
+          padding: 3rem 1rem 2rem 1rem;
+          text-align: center;
+          margin-top: 32px; /* Reduced margin to bring closer to App Bar */
+        }
 
 .header-content {
   max-width: 100%;
@@ -331,6 +336,30 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 
+.app-logo {
+  width: 60px;
+  height: 60px;
+  margin-right: 1rem;
+  object-fit: contain;
+}
+
+/* Responsive logo for mobile */
+@media (max-width: 768px) {
+  .app-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-logo {
+    width: 30px;
+    height: 30px;
+    margin-right: 0.25rem;
+  }
+}
+
 .header-icon {
   color: white;
   font-size: 2rem;
@@ -343,6 +372,21 @@ onMounted(() => {
   margin: 0;
   letter-spacing: 3px;
   text-align: center;
+}
+
+/* Responsive title for mobile */
+@media (max-width: 768px) {
+  .app-title {
+    font-size: 2.2rem;
+    letter-spacing: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-title {
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+  }
 }
 
 .app-subtitle {
@@ -562,8 +606,21 @@ onMounted(() => {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive Design for Login */
+/* Responsive Design */
 @media (max-width: 600px) {
+  .header-section {
+    margin-top: 24px; /* Reduced margin for mobile to bring closer to App Bar */
+    padding: 2.5rem 1rem 1.5rem 1rem;
+  }
+
+  .app-title {
+    font-size: 2rem;
+  }
+
+  .app-subtitle {
+    font-size: 1rem;
+  }
+
   .login-content {
     padding: 2rem 1rem;
     margin: 1rem;

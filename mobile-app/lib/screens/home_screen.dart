@@ -36,23 +36,54 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'REMINDLY',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Responsive sizing based on screen width
+                        double logoSize = constraints.maxWidth < 400 ? 35.0 : 
+                                        constraints.maxWidth < 600 ? 45.0 : 50.0;
+                        double fontSize = constraints.maxWidth < 400 ? 22.0 : 
+                                        constraints.maxWidth < 600 ? 25.0 : 28.0;
+                        double spacing = constraints.maxWidth < 400 ? 8.0 : 
+                                        constraints.maxWidth < 600 ? 10.0 : 12.0;
+                        
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/LogoRemindly.png',
+                              width: logoSize,
+                              height: logoSize,
+                              fit: BoxFit.contain,
+                            ),
+                            SizedBox(width: spacing),
+                            Text(
+                              'REMINDLY',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: fontSize,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'ORGANIZE. REMEMBER. ACHIEVE',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        double subtitleSize = constraints.maxWidth < 400 ? 12.0 : 
+                                            constraints.maxWidth < 600 ? 14.0 : 16.0;
+                        
+                        return Text(
+                          'ORGANIZE. REMEMBER. ACHIEVE',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontSize: subtitleSize,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -256,7 +287,7 @@ class HomeScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildBottomNavItem(Icons.home, 'Home', true),
-            _buildNewListButton(),
+            _buildNewListButton(context),
             GestureDetector(
               onTap: () {
                 // TODO: Navigate to settings screen
@@ -294,7 +325,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNewListButton() {
+  Widget _buildNewListButton(BuildContext context) {
     return GestureDetector(
       onTap: () {
         // TODO: Navigate to create new list screen

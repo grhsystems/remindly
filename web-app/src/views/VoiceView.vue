@@ -21,7 +21,6 @@
                   v-for="(recording, index) in recordings"
                   :key="recording.id"
                   class="recording-item"
-                  @click="playRecording(recording)"
                 >
                   <div class="recording-left">
                     <v-icon
@@ -70,23 +69,44 @@
           </v-card>
         </v-col>
       </v-row>
-
-      <!-- Add Recording Button -->
-      <v-row class="mt-4">
-        <v-col cols="12">
-          <v-btn
-            color="primary"
-            size="large"
-            block
-            @click="startRecording"
-            :loading="isRecording"
-          >
-            <v-icon left>mdi-microphone</v-icon>
-            {{ isRecording ? 'Recording...' : '+ New Recording' }}
-          </v-btn>
-        </v-col>
-      </v-row>
     </v-container>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="bottom-nav">
+      <v-btn
+        icon
+        variant="text"
+        size="large"
+        @click="navigateToHome"
+        class="nav-button"
+      >
+        <v-icon>mdi-home</v-icon>
+        <span class="nav-label">Home</span>
+      </v-btn>
+      
+      <v-btn
+        color="primary"
+        size="large"
+        rounded
+        elevation="8"
+        @click="startRecording"
+        class="new-recording-button"
+      >
+        <v-icon start>mdi-microphone</v-icon>
+        New Recording
+      </v-btn>
+      
+      <v-btn
+        icon
+        variant="text"
+        size="large"
+        @click="navigateToSettings"
+        class="nav-button"
+      >
+        <v-icon>mdi-cog</v-icon>
+        <span class="nav-label">Settings</span>
+      </v-btn>
+    </div>
 
     <!-- Recording Dialog -->
     <v-dialog v-model="showRecordingDialog" max-width="400">
@@ -182,8 +202,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useVoiceRecordingStore } from '@/stores/voiceRecordingStore'
 
+const router = useRouter()
 const voiceRecordingStore = useVoiceRecordingStore()
 
 // Reactive data
@@ -203,7 +225,7 @@ const editingRecording = ref({
   transcription: ''
 })
 
-// Mock data for now
+// Mock data for now - matching the image exactly
 const recordings = ref([
   {
     id: '1',
@@ -362,6 +384,15 @@ const formatDuration = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+// Navigation functions
+const navigateToHome = () => {
+  router.push('/')
+}
+
+const navigateToSettings = () => {
+  router.push('/settings')
+}
+
 onMounted(() => {
   // Load recordings from store
   voiceRecordingStore.loadRecordings()
@@ -461,6 +492,57 @@ onMounted(() => {
   gap: 4px;
 }
 
+/* Bottom Navigation Bar */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 16px;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+  height: 60px;
+}
+
+.nav-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+.new-recording-button {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.new-recording-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Add bottom padding to main content to account for fixed bottom nav */
+.voice-view {
+  padding-bottom: 80px;
+}
+
 /* Responsive Design */
 @media (max-width: 600px) {
   .app-title {
@@ -481,6 +563,24 @@ onMounted(() => {
 
   .recording-subtitle {
     font-size: 12px;
+  }
+
+  .bottom-nav {
+    padding: 4px 8px;
+  }
+
+  .nav-button {
+    min-width: 50px;
+    height: 50px;
+  }
+
+  .nav-label {
+    font-size: 10px;
+  }
+
+  .new-recording-button {
+    font-size: 0.9rem;
+    padding: 8px 16px;
   }
 }
 </style>
